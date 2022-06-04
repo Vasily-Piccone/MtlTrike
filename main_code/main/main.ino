@@ -16,13 +16,17 @@ boolean going = true;
 
 void setup(){
   // Open serial communications and wait for port to open:
-  Serial.begin(9600);
+  Serial.begin(115200);
   init_sd();
   Serial.print("Ready to begin recording");
+  Serial.print("Testing logging...");
+  for(int i=0; i<10; i++){
+    write_sd(i*2.5, i*5, 7.5*i);
+  }
 }
 
 void loop(){
-  
+ 
 }
 
 
@@ -48,9 +52,25 @@ void init_sd()
 // Writes speed, rpm, distance and time to sd card 
 void write_sd(double spd, double rpm, double t) 
 {
-  
+  String dataString = (String) spd +","+ (String) rpm +","+ (String) t;
+  File dataFile = SD.open("datalog.txt", FILE_WRITE);
+    
+   // if the file is available, write to it:
+  if (dataFile) {
+    dataFile.println(dataString);
+    dataFile.close();
+    // print to the serial port too:
+    Serial.println(dataString);
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.println("error opening datalog.txt");
+  }
 }
 
+void write_lcd(double rpm, double spd){
+  
+}
 //calculate the various values given the initial time and final time
 void values(double t_i, double t_f, double arr[])
 {

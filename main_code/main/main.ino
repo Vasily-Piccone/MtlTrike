@@ -11,11 +11,17 @@
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,16,2);
 
-// Hall sensor
-const byte interruptPin = 2;
+
+const byte interruptPin = 2; // Hall sensor
+const byte startButton = 8; // Start Button
+const byte LED_PIN =9; // To blink LED
+
 volatile unsigned long prevHall = 0;
 int timeChange;
+
 boolean intTriggered = false;
+
+boolean startRecording = false;
 
 // Variables
 const int chipSelect = 10;
@@ -25,9 +31,10 @@ boolean going = true;
 void setup(){
   // Open serial communic;ations and wait for port to open:
   Serial.begin(9600);
-  // Initialize the interrupt pin
-  pinMode(interruptPin, INPUT_PULLUP);
-  
+
+  pinMode(interruptPin, INPUT_PULLUP); // Initialize the interrupt pin
+  pinMode(startButton, INPUT); // Initialize pin for on/off operations
+  pinMode(LED_PIN, OUTPUT);
   double delta_t = 0.05; // Test value in seconds
   init_sd();
   
@@ -35,32 +42,43 @@ void setup(){
   lcd.init();
   lcd.clear();
   lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("START RECORDING?");
   
-}
+  while(true){
+    startRecording = digitalRead(startButton);
+    Serial.print(startRecording);
+    if(startRecording == true) {
+      lcd.clear();
+      lcd.print("STARTED");
+      break;
+    }
+    delay(10);
+    
+  }
+}`
 
 void loop(){
   attachInterrupt(digitalPinToInterrupt(interruptPin), trigger, RISING);
-  if(intTriggered == true) {
-    // calculate deltaTime
-    long dt = deltaTime();
-    double arr[2] = {0};
+  attachInterrupt(digitalPinToInterrupt(startButton), doneRecording, RISING); // Get this to immediately stop the recording of the data
+    if(intTriggered == true) {
+      // calculate deltaTime
+      long dt = deltaTime();
+      double arr[2] = {0};
+      pop_array(arr, dt);  // calculate kinematics
+      write_sd(arr[0], arr[1]); // log to SD card
   
-    // calculate kinematics
-    pop_array(arr, dt);
-    // log to SD card
-    write_sd(arr[0], arr[1]);
-  
-    // if a certain amount of time has passed, log to the screen
-    if (timeChange > 200) {
-      //update screen 
-      write_lcd(arr[0], arr[1]);
-      timeChange = 0;
-     } else {
-      timeChange += dt;
-     }
-     intTriggered = false;
+      // if a certain amount of time has passed, log to the screen
+      if (timeChange > 200) {
+        //update screen 
+        write_lcd(arr[0], arr[1]);
+        timeChange = 0;
+      } else {
+        timeChange += dt;
+      }
+      intTriggered = false;
+    }
   }
-}
 
 
 // SD card is currently causing issues.
@@ -125,6 +143,17 @@ void pop_array(double *kin, double dt) {
 // The magic routine
 void trigger(){
   intTriggered = true;
+}
+
+void doneRecording(){
+  lcd.clear();
+  lcd.print("Recording done.");
+  while(true){
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+  }
 }
 
 //Returns time difference between triggers in ms 

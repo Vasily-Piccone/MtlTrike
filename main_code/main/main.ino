@@ -14,7 +14,7 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 
 const byte interruptPin = 2; // Hall sensor
 const byte startButton = 8; // Start Button
-const byte LED_PIN =9; // To blink LED
+const byte LED_PIN = 9; // To blink LED
 
 volatile unsigned long prevHall = 0;
 int timeChange;
@@ -33,10 +33,13 @@ void setup(){
   Serial.begin(9600);
 
   pinMode(interruptPin, INPUT_PULLUP); // Initialize the interrupt pin
-  pinMode(startButton, INPUT); // Initialize pin for on/off operations
+//  pinMode(startButton, INPUT); // Initialize pin for on/off operations
+
+
   pinMode(LED_PIN, OUTPUT);
   double delta_t = 0.05; // Test value in seconds
   init_sd();
+  write_space_to_sd();
   
   // display setup
   lcd.init();
@@ -45,22 +48,10 @@ void setup(){
   lcd.setCursor(0,0);
   lcd.print("START RECORDING?");
   
-  while(true){
-    startRecording = digitalRead(startButton);
-    Serial.print(startRecording);
-    if(startRecording == true) {
-      lcd.clear();
-      lcd.print("STARTED");
-      break;
-    }
-    delay(10);
-    
-  }
-}`
+}
 
 void loop(){
-  attachInterrupt(digitalPinToInterrupt(interruptPin), trigger, RISING);
-  attachInterrupt(digitalPinToInterrupt(startButton), doneRecording, RISING); // Get this to immediately stop the recording of the data
+    attachInterrupt(digitalPinToInterrupt(interruptPin), trigger, RISING);
     if(intTriggered == true) {
       // calculate deltaTime
       long dt = deltaTime();
@@ -88,7 +79,7 @@ void init_sd()
   while (!Serial) {
   // wait for serial port to connect. Needed for native USB port only
   }
-  Serial.print("Initializing SD card...");
+  Serial.print("Initializing SD card...\n");
 
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
@@ -103,7 +94,7 @@ void init_sd()
 // Writes speed, rpm, distance and time to sd card 
 void write_sd(double spd, double t) 
 {
-  String dataString = (String) spd +","+ (String) t +"ms";
+  String dataString = (String) spd +","+ (String) t;
   File dataFile = SD.open("datalog.txt", FILE_WRITE);
     
    // if the file is available, write to it:
@@ -115,7 +106,19 @@ void write_sd(double spd, double t)
   }
   // if the file isn't open, pop up an error:
   else {
-    Serial.print("error"); // opening datalog.txt
+    Serial.print("error\n"); // opening datalog.txt
+  }
+}
+
+void write_space_to_sd(){
+  File dataFile = SD.open("datalog.txt",FILE_WRITE);
+  if (dataFile) {
+    dataFile.println("\n");
+    dataFile.close();
+  }
+  // if the file isn't open, pop up an error:
+  else {
+    Serial.print("error\n"); // opening datalog.txt
   }
 }
 
@@ -146,14 +149,7 @@ void trigger(){
 }
 
 void doneRecording(){
-  lcd.clear();
-  lcd.print("Recording done.");
-  while(true){
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-  }
+  startRecording = true;
 }
 
 //Returns time difference between triggers in ms 
